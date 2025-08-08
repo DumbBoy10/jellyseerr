@@ -54,38 +54,20 @@ const StatusChecker = () => {
       appear
       show={
         !alertDismissed &&
-        ((hasPermission(Permission.ADMIN) && data.restartRequired) ||
-          data.commitTag !== process.env.commitTag)
+        hasPermission(Permission.ADMIN) && 
+        data.restartRequired
       }
     >
-      {hasPermission(Permission.ADMIN) && data.restartRequired ? (
-        <Modal
-          title={intl.formatMessage(messages.restartRequired)}
-          backgroundClickable={false}
-          onOk={() => {
-            setAlertDismissed(true);
-            if (data.commitTag !== process.env.commitTag) {
-              location.reload();
-            }
-          }}
-          okText={intl.formatMessage(globalMessages.close)}
-        >
-          {intl.formatMessage(messages.restartRequiredDescription)}
-        </Modal>
-      ) : (
-        <Modal
-          title={intl.formatMessage(messages.appUpdated, {
-            applicationTitle: settings.currentSettings.applicationTitle,
-          })}
-          onOk={() => location.reload()}
-          okText={intl.formatMessage(messages.reloadApp, {
-            applicationTitle: settings.currentSettings.applicationTitle,
-          })}
-          backgroundClickable={false}
-        >
-          {intl.formatMessage(messages.appUpdatedDescription)}
-        </Modal>
-      )}
+      <Modal
+        title={intl.formatMessage(messages.restartRequired)}
+        backgroundClickable={false}
+        onOk={() => {
+          setAlertDismissed(true);
+        }}
+        okText={intl.formatMessage(globalMessages.close)}
+      >
+        {intl.formatMessage(messages.restartRequiredDescription)}
+      </Modal>
     </Transition>
   );
 };
