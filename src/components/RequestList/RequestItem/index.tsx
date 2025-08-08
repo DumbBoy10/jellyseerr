@@ -2,6 +2,7 @@ import Badge from '@app/components/Common/Badge';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import ConfirmButton from '@app/components/Common/ConfirmButton';
+import Modal from '@app/components/Common/Modal';
 import RequestModal from '@app/components/RequestModal';
 import StatusBadge from '@app/components/StatusBadge';
 import useDeepLinks from '@app/hooks/useDeepLinks';
@@ -10,9 +11,12 @@ import { Permission, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import { refreshIntervalHelper } from '@app/utils/refreshIntervalHelper';
+import { Transition } from '@headlessui/react';
 import {
+  ArrowDownTrayIcon,
   ArrowPathIcon,
   CheckIcon,
+  MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
   XMarkIcon,
@@ -47,6 +51,13 @@ const messages = defineMessages('components.RequestList.RequestItem', {
   unknowntitle: 'Unknown Title',
   removearr: 'Remove from {arr}',
   profileName: 'Profile',
+  searchWebshare: 'Search WebShare.cz',
+  webshareSearching: 'Searching WebShare.cz...',
+  webshareNoResults: 'No files found on WebShare.cz',
+  webshareError: 'Failed to search WebShare.cz',
+  webshareDownloadStarted: 'Download started: {fileName}',
+  webshareDownloadSuccess: 'Download completed: {fileName}',
+  webshareDownloadError: 'Download failed: {fileName}',
 });
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
@@ -303,6 +314,11 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
   const intl = useIntl();
   const { user, hasPermission } = useUser();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [webshareResults, setWebshareResults] = useState<
+    { ident: string; name: string; size?: number }[]
+  >([]);
+  const [showWebshareModal, setShowWebshareModal] = useState(false);
+  const [isSearchingWebshare, setIsSearchingWebshare] = useState(false);
   const url =
     request.type === 'movie'
       ? `/api/v1/movie/${request.media.tmdbId}`
@@ -343,9 +359,7 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
 
   const deleteMediaFile = async () => {
     if (request.media) {
-      await axios.delete(
-        `/api/v1/media/${request.media.id}/file?is4k=${request.is4k}`
-      );
+      await axios.delete(`/api/v1/media/${request.media.id}/file`);
       await axios.delete(`/api/v1/media/${request.media.id}`);
       revalidateList();
     }
@@ -364,6 +378,67 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
       });
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const searchWebshare = async () => {
+    if (!title) return;
+    
+    setIsSearchingWebshare(true);
+    
+    try {
+      const response = await axios.get('/api/v1/webshare/search-request', {
+        params: {
+          title: 'title' in title ? title.title : title.name,
+          year: request.type === 'movie' ? (title as MovieDetails).releaseDate?.split('-')[0] : (title as TvDetails).firstAirDate?.split('-')[0],
+        },
+      });
+      
+      setWebshareResults(response.data.files || []);
+      setShowWebshareModal(true);
+      
+      if (response.data.files?.length === 0) {
+        addToast(intl.formatMessage(messages.webshareNoResults), {
+          autoDismiss: true,
+          appearance: 'info',
+        });
+      }
+    } catch (e) {
+      addToast(intl.formatMessage(messages.webshareError), {
+        autoDismiss: true,
+        appearance: 'error',
+      });
+    } finally {
+      setIsSearchingWebshare(false);
+    }
+  };
+
+  const downloadWebshareFile = async (ident: string, fileName: string) => {
+    try {
+      addToast(intl.formatMessage(messages.webshareDownloadStarted, { fileName }), {
+        autoDismiss: true,
+        appearance: 'info',
+      });
+
+      const response = await axios.post(`/api/v1/webshare/download/${ident}`, {
+        fileName,
+      });
+      
+      if (response.data.success) {
+        addToast(intl.formatMessage(messages.webshareDownloadSuccess, { fileName }), {
+          autoDismiss: true,
+          appearance: 'success',
+        });
+        setShowWebshareModal(false);
+        
+        // Redirect to downloads page to track progress
+        window.location.href = '/downloads';
+      }
+    } catch (error) {
+      addToast(intl.formatMessage(messages.webshareDownloadError, { fileName }), {
+        autoDismiss: true,
+        appearance: 'error',
+      });
     }
   };
 
@@ -669,6 +744,24 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
           </div>
         </div>
         <div className="z-10 mt-4 flex w-full flex-col justify-center space-y-2 pl-4 pr-4 xl:mt-0 xl:w-96 xl:items-end xl:pl-0">
+          {/* WebShare search button - available for all authenticated users */}
+          {title && (
+            <Button
+              className="w-full"
+              buttonType="primary"
+              disabled={isSearchingWebshare}
+              onClick={() => searchWebshare()}
+            >
+              <MagnifyingGlassIcon
+                className={isSearchingWebshare ? 'animate-spin' : ''}
+              />
+              <span>
+                {intl.formatMessage(
+                  isSearchingWebshare ? messages.webshareSearching : messages.searchWebshare
+                )}
+              </span>
+            </Button>
+          )}
           {requestData.status === MediaRequestStatus.FAILED &&
             hasPermission(Permission.MANAGE_REQUESTS) && (
               <Button
@@ -770,6 +863,64 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
             )}
         </div>
       </div>
+      
+      {/* WebShare Results Modal */}
+      <Transition
+        as="div"
+        enter="transition-opacity duration-300"
+        enterFrom="opacity-0"
+        enterTo="opacity-100"
+        leave="transition-opacity duration-300"
+        leaveFrom="opacity-100"
+        leaveTo="opacity-0"
+        show={showWebshareModal}
+      >
+        <Modal
+          title={`WebShare.cz Search Results`}
+          onCancel={() => setShowWebshareModal(false)}
+          onOk={() => setShowWebshareModal(false)}
+          okText="Close"
+          cancelText=""
+        >
+          <div className="space-y-4">
+            {webshareResults.length === 0 ? (
+              <p className="text-gray-400">No files found.</p>
+            ) : (
+              <div className="space-y-2">
+                {webshareResults.slice(0, 10).map((file, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between rounded-lg bg-gray-800 p-3 hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Size: {((file.size || 0) / (1024 * 1024 * 1024)).toFixed(2)} GB
+                      </p>
+                    </div>
+                    <Button
+                      buttonType="primary"
+                      buttonSize="sm"
+                      onClick={() => downloadWebshareFile(file.ident, file.name)}
+                      className="ml-3 flex-shrink-0"
+                    >
+                      <ArrowDownTrayIcon className="h-4 w-4" />
+                      <span className="ml-1">Download</span>
+                    </Button>
+                  </div>
+                ))}
+                {webshareResults.length > 10 && (
+                  <p className="text-sm text-gray-400 text-center">
+                    Showing first 10 of {webshareResults.length} results
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </Modal>
+      </Transition>
     </>
   );
 };

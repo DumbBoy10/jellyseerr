@@ -1,10 +1,11 @@
 import ButtonWithDropdown from '@app/components/Common/ButtonWithDropdown';
 import RequestModal from '@app/components/RequestModal';
+import WebShareDownloadModal from '@app/components/WebShareDownloadModal';
 import useSettings from '@app/hooks/useSettings';
 import { Permission, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, CloudArrowDownIcon } from '@heroicons/react/24/outline';
 import {
   CheckIcon,
   InformationCircleIcon,
@@ -35,6 +36,7 @@ const messages = defineMessages('components.RequestButton', {
     'Approve {requestCount, plural, one {4K Request} other {{requestCount} 4K Requests}}',
   decline4krequests:
     'Decline {requestCount, plural, one {4K Request} other {{requestCount} 4K Requests}}',
+  webshareDownload: 'Download from WebShare',
 });
 
 interface ButtonOption {
@@ -67,6 +69,7 @@ const RequestButton = ({
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showRequest4kModal, setShowRequest4kModal] = useState(false);
   const [editRequest, setEditRequest] = useState(false);
+  const [showWebShareModal, setShowWebShareModal] = useState(false);
 
   // All pending requests
   const activeRequests = media?.requests.filter(
@@ -359,6 +362,27 @@ const RequestButton = ({
     });
   }
 
+  // WebShare download button - show for any requested media if user has admin permission
+  if (
+    (media &&
+      (media.status === MediaStatus.AVAILABLE ||
+        media.status === MediaStatus.PROCESSING ||
+        media.status === MediaStatus.PENDING ||
+        media.status4k === MediaStatus.AVAILABLE ||
+        media.status4k === MediaStatus.PROCESSING ||
+        media.status4k === MediaStatus.PENDING)) &&
+    hasPermission(Permission.ADMIN)
+  ) {
+    buttons.push({
+      id: 'webshare-download',
+      text: intl.formatMessage(messages.webshareDownload),
+      action: () => {
+        setShowWebShareModal(true);
+      },
+      svg: <CloudArrowDownIcon />,
+    });
+  }
+
   const [buttonOne, ...others] = buttons;
 
   if (!buttonOne) {
@@ -389,6 +413,11 @@ const RequestButton = ({
           setShowRequest4kModal(false);
         }}
         onCancel={() => setShowRequest4kModal(false)}
+      />
+      <WebShareDownloadModal
+        show={showWebShareModal}
+        onClose={() => setShowWebShareModal(false)}
+        mediaTitle={`${mediaType === 'movie' ? 'Movie' : 'TV Show'} ${tmdbId}`}
       />
       <ButtonWithDropdown
         text={

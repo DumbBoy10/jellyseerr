@@ -143,7 +143,6 @@ components:
       properties:
         username:
           type: string
-          nullable: true
           example: 'Mr User'
         email:
           type: string
@@ -497,6 +496,21 @@ components:
         externalUrl:
           type: string
           nullable: true
+    WebShareSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          example: false
+        username:
+          type: string
+          example: 'myusername'
+        password:
+          type: string
+          example: 'mypassword'
+        downloadPath:
+          type: string
+          example: '/downloads'
     RadarrSettings:
       type: object
       properties:
@@ -2557,6 +2571,75 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TautulliSettings'
+  /settings/webshare:
+    get:
+      summary: Get WebShare settings
+      description: Returns WebShare settings in a JSON object.
+      tags:
+        - settings
+      responses:
+        '200':
+          description: 'Values were returned'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebShareSettings'
+    post:
+      summary: Update WebShare settings
+      description: Updates WebShare settings with the provided values.
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebShareSettings'
+      responses:
+        '200':
+          description: 'Values were successfully updated'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebShareSettings'
+  /settings/webshare/test:
+    post:
+      summary: Test WebShare connection
+      description: Tests the connection to WebShare.cz with provided credentials.
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: 'Connection test successful'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  method:
+                    type: string
+        '400':
+          description: 'Bad request'
+        '401':
+          description: 'Invalid credentials'
+        '500':
+          description: 'Server error'
   /settings/radarr:
     get:
       summary: Get Radarr settings
@@ -4840,6 +4923,204 @@ paths:
                       $ref: '#/components/schemas/MediaInfo'
                   playCount:
                     type: number
+  /webshare/search-request:
+    get:
+      summary: Search WebShare.cz for a specific movie/show from a request
+      description: Searches WebShare.cz for files matching the provided title and year
+      tags:
+        - other
+      parameters:
+        - in: query
+          name: title
+          required: true
+          schema:
+            type: string
+            example: 'Avatar'
+        - in: query
+          name: year
+          required: false
+          schema:
+            type: string
+            example: '2009'
+      responses:
+        '200':
+          description: 'Search results from WebShare.cz'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ident:
+                          type: string
+                        name:
+                          type: string
+                        size:
+                          type: number
+                  total:
+                    type: number
+                  query:
+                    type: string
+                  title:
+                    type: string
+                  year:
+                    type: string
+        '400':
+          description: 'Bad request - title is required'
+        '503':
+          description: 'WebShare.cz is not configured'
+        '500':
+          description: 'Search failed'
+  /webshare/download/{ident}:
+    post:
+      summary: Download a file from WebShare.cz
+      description: Downloads a file from WebShare.cz using the provided file identifier
+      tags:
+        - other
+      parameters:
+        - in: path
+          name: ident
+          required: true
+          schema:
+            type: string
+            example: 'abc123def456'
+          description: 'WebShare.cz file identifier'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileName:
+                  type: string
+                  example: 'Avatar.2009.1080p.mkv'
+                  description: 'The filename to save the downloaded file as'
+              required:
+                - fileName
+      responses:
+        '200':
+          description: 'Download completed successfully'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  fileName:
+                    type: string
+                    example: 'Avatar.2009.1080p.mkv'
+                  filePath:
+                    type: string
+                    example: '/downloads/Avatar.2009.1080p.mkv'
+                  ident:
+                    type: string
+                    example: 'abc123def456'
+                  message:
+                    type: string
+                    example: 'Download completed successfully'
+        '400':
+          description: 'Download path not configured'
+        '503':
+          description: 'WebShare.cz is not configured'
+        '500':
+          description: 'Download failed'
+  /webshare/downloads:
+    get:
+      summary: Get user's downloads
+      description: Retrieves all downloads for the current user
+      tags:
+        - other
+      responses:
+        '200':
+          description: 'List of user downloads'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  downloads:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 'download_1691234567_abc123'
+                        fileName:
+                          type: string
+                          example: 'Avatar.2009.1080p.mkv'
+                        filePath:
+                          type: string
+                          example: '/downloads/Avatar.2009.1080p.mkv'
+                        ident:
+                          type: string
+                          example: 'abc123def456'
+                        status:
+                          type: string
+                          enum: ['downloading', 'completed', 'failed', 'cancelled']
+                        progress:
+                          type: number
+                          example: 75
+                        startTime:
+                          type: string
+                          format: date-time
+                        endTime:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        totalSize:
+                          type: number
+                          example: 2147483648
+                        downloadedSize:
+                          type: number
+                          example: 1610612736
+                        speed:
+                          type: number
+                          example: 1048576
+                        error:
+                          type: string
+                          nullable: true
+        '500':
+          description: 'Failed to get downloads'
+  /webshare/downloads/{id}:
+    delete:
+      summary: Cancel a download
+      description: Cancels a running download by ID
+      tags:
+        - other
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            example: 'download_1691234567_abc123'
+          description: 'Download ID to cancel'
+      responses:
+        '200':
+          description: 'Download cancelled successfully'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Download cancelled successfully'
+        '404':
+          description: 'Download not found or cannot be cancelled'
+        '500':
+          description: 'Failed to cancel download'
   /search:
     get:
       summary: Search for movies, TV shows, or people
@@ -6656,16 +6937,9 @@ paths:
           example: '1'
           schema:
             type: string
-        - in: query
-          name: is4k
-          description: Whether to remove from 4K service instance (true) or regular service instance (false)
-          required: false
-          example: false
-          schema:
-            type: boolean
       responses:
         '204':
-          description: Successfully removed media item
+          description: Succesfully removed media item
   /media/{mediaId}/{status}:
     post:
       summary: Update media status

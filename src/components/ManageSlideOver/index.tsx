@@ -118,11 +118,9 @@ const ManageSlideOver = ({
     }
   };
 
-  const deleteMediaFile = async (is4k = false) => {
+  const deleteMediaFile = async () => {
     if (data.mediaInfo) {
-      await axios.delete(
-        `/api/v1/media/${data.mediaInfo.id}/file?is4k=${is4k}`
-      );
+      await axios.delete(`/api/v1/media/${data.mediaInfo.id}/file`);
       await axios.delete(`/api/v1/media/${data.mediaInfo.id}`);
       revalidate();
       onClose();
@@ -416,7 +414,7 @@ const ManageSlideOver = ({
                   isDefaultService() && (
                     <div>
                       <ConfirmButton
-                        onClick={() => deleteMediaFile(false)}
+                        onClick={() => deleteMediaFile()}
                         confirmText={intl.formatMessage(
                           globalMessages.areyousure
                         )}
@@ -575,7 +573,7 @@ const ManageSlideOver = ({
                     {isDefaultService() && (
                       <div>
                         <ConfirmButton
-                          onClick={() => deleteMediaFile(true)}
+                          onClick={() => deleteMediaFile()}
                           confirmText={intl.formatMessage(
                             globalMessages.areyousure
                           )}

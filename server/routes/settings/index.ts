@@ -40,13 +40,20 @@ import { URL } from 'url';
 import notificationRoutes from './notifications';
 import radarrRoutes from './radarr';
 import sonarrRoutes from './sonarr';
+import webshareRoutes from './webshare';
 
 const settingsRoutes = Router();
 
 settingsRoutes.use('/notifications', notificationRoutes);
 settingsRoutes.use('/radarr', radarrRoutes);
 settingsRoutes.use('/sonarr', sonarrRoutes);
+settingsRoutes.use('/webshare', webshareRoutes);
 settingsRoutes.use('/discover', discoverSettingRoutes);
+
+// Debug route to test settings router
+settingsRoutes.get('/test-route', (_req, res) => {
+  res.status(200).json({ message: 'Settings router is working!' });
+});
 
 const filteredMainSettings = (
   user: User,

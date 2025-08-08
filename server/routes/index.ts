@@ -18,6 +18,7 @@ import { mapNetwork } from '@server/models/Tv';
 import overrideRuleRoutes from '@server/routes/overrideRule';
 import settingsRoutes from '@server/routes/settings';
 import watchlistRoutes from '@server/routes/watchlist';
+import webshareRoutes from '@server/routes/webshare';
 import {
   appDataPath,
   appDataPermissions,
@@ -147,6 +148,7 @@ router.get(
   }
 );
 router.use('/settings', isAuthenticated(Permission.ADMIN), settingsRoutes);
+router.use('/webshare', isAuthenticated(), webshareRoutes);
 router.use('/search', isAuthenticated(), searchRoutes);
 router.use('/discover', isAuthenticated(), discoverRoutes);
 router.use('/request', isAuthenticated(), requestRoutes);
@@ -161,6 +163,47 @@ router.use('/service', isAuthenticated(), serviceRoutes);
 router.use('/issue', isAuthenticated(), issueRoutes);
 router.use('/issueComment', isAuthenticated(), issueCommentRoutes);
 router.use('/auth', authRoutes);
+
+// Temporary admin user creation for testing
+router.post('/create-test-admin', async (req, res) => {
+  try {
+    const { getRepository } = await import('@server/datasource');
+    const { User } = await import('@server/entity/User');
+    const { Permission } = await import('@server/lib/permissions');
+    
+    const userRepository = getRepository(User);
+    
+    // Check if admin already exists
+    const existingAdmin = await userRepository.findOne({ where: { email: 'admin@jellyseerr.local' } });
+    if (existingAdmin) {
+      return res.status(200).json({ 
+        message: 'Admin user already exists',
+        email: 'admin@jellyseerr.local'
+      });
+    }
+    
+    // Create admin user
+    const user = new User();
+    user.email = 'admin@jellyseerr.local';
+    user.username = 'admin';
+    user.permissions = Permission.ADMIN;
+    user.userType = 1; // Local user
+    await user.setPassword('admin123');
+    
+    await userRepository.save(user);
+    
+    res.status(200).json({ 
+      message: 'Test admin user created successfully',
+      email: 'admin@jellyseerr.local',
+      password: 'admin123'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Failed to create admin user', 
+      message: error.message 
+    });
+  }
+});
 router.use(
   '/overrideRule',
   isAuthenticated(Permission.ADMIN),

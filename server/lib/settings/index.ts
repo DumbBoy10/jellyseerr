@@ -58,6 +58,13 @@ export interface TautulliSettings {
   externalUrl?: string;
 }
 
+export interface WebShareSettings {
+  enabled: boolean;
+  username: string;
+  password: string;
+  downloadPath: string;
+}
+
 export interface DVRSettings {
   id: number;
   name: string;
@@ -320,17 +327,18 @@ export type JobId =
 
 export interface AllSettings {
   clientId: string;
-  vapidPublic: string;
   vapidPrivate: string;
+  vapidPublic: string;
   main: MainSettings;
   plex: PlexSettings;
-  jellyfin: JellyfinSettings;
   tautulli: TautulliSettings;
   radarr: RadarrSettings[];
   sonarr: SonarrSettings[];
   public: PublicSettings;
+  jellyfin: JellyfinSettings;
+  webshare: WebShareSettings;
   notifications: NotificationSettings;
-  jobs: Record<JobId, JobSettings>;
+  jobs: Record<string, JobSettings>;
   network: NetworkSettings;
 }
 
@@ -396,6 +404,12 @@ class Settings {
       sonarr: [],
       public: {
         initialized: false,
+      },
+      webshare: {
+        enabled: false,
+        username: '',
+        password: '',
+        downloadPath: '',
       },
       notifications: {
         agents: {
@@ -595,6 +609,14 @@ class Settings {
 
   set sonarr(data: SonarrSettings[]) {
     this.data.sonarr = data;
+  }
+
+  get webshare(): WebShareSettings {
+    return this.data.webshare;
+  }
+
+  set webshare(data: WebShareSettings) {
+    this.data.webshare = data;
   }
 
   get public(): PublicSettings {
