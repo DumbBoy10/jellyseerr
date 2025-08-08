@@ -55,7 +55,10 @@ router.get<unknown, StatusResponse>('/status', async (req, res) => {
   let updateAvailable = false;
   let commitsBehind = 0;
 
-  if (currentVersion.startsWith('develop-') && commitTag !== 'local') {
+  // Disable update checking for forks or local builds
+  const isForkOrLocal = commitTag === 'local';
+
+  if (currentVersion.startsWith('develop-') && commitTag !== 'local' && !isForkOrLocal) {
     const commits = await githubApi.getJellyseerrCommits();
 
     if (commits.length) {
@@ -74,7 +77,7 @@ router.get<unknown, StatusResponse>('/status', async (req, res) => {
         commitsBehind = commitIndex;
       }
     }
-  } else if (commitTag !== 'local') {
+  } else if (commitTag !== 'local' && !isForkOrLocal) {
     const releases = await githubApi.getJellyseerrReleases();
 
     if (releases.length) {
