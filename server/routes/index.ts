@@ -48,50 +48,16 @@ const router = Router();
 router.use(checkUser);
 
 router.get<unknown, StatusResponse>('/status', async (req, res) => {
-  const githubApi = new GithubAPI();
-
   const currentVersion = getAppVersion();
   const commitTag = getCommitTag();
-  let updateAvailable = false;
-  let commitsBehind = 0;
-
-  // Disable update checking for forks or local builds
-  const isForkOrLocal = commitTag === 'local';
-
-  if (currentVersion.startsWith('develop-') && commitTag !== 'local' && !isForkOrLocal) {
-    const commits = await githubApi.getJellyseerrCommits();
-
-    if (commits.length) {
-      const filteredCommits = commits.filter(
-        (commit) => !commit.commit.message.includes('[skip ci]')
-      );
-      if (filteredCommits[0].sha !== commitTag) {
-        updateAvailable = true;
-      }
-
-      const commitIndex = filteredCommits.findIndex(
-        (commit) => commit.sha === commitTag
-      );
-
-      if (updateAvailable) {
-        commitsBehind = commitIndex;
-      }
-    }
-  } else if (commitTag !== 'local' && !isForkOrLocal) {
-    const releases = await githubApi.getJellyseerrReleases();
-
-    if (releases.length) {
-      const latestVersion = releases[0];
-
-      if (!latestVersion.name.includes(currentVersion)) {
-        updateAvailable = true;
-      }
-    }
-  }
+  
+  // Disable update checking completely - always return false for updateAvailable
+  const updateAvailable = false;
+  const commitsBehind = 0;
 
   return res.status(200).json({
-    version: getAppVersion(),
-    commitTag: getCommitTag(),
+    version: currentVersion,
+    commitTag: commitTag,
     updateAvailable,
     commitsBehind,
     restartRequired: restartFlag.isSet(),
